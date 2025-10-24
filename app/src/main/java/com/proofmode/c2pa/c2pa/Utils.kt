@@ -13,6 +13,7 @@ import org.contentauth.c2pa.SignerInfo
 import org.contentauth.c2pa.SigningAlgorithm
 import java.io.File
 import java.io.FileOutputStream
+import java.time.Instant
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -60,7 +61,7 @@ fun signWithC2PA(uri: Uri, context: Context,fileFormat: String,
         fileFormat
     )
         .addAction("c2pa.created",
-            whenIso = Clock.System.now().toString(),
+            whenIso = Instant.now().toString(),
             softwareAgent = "ProofmodeC2PA,${context.packageName}/${context.getAppVersionName()?:""}")
         .addAuthorInfo("ProofmodeC2PA,${context.packageName}/${context.getAppVersionName() ?: ""}",
             description = "Test app for C2PA by Proofmode")
