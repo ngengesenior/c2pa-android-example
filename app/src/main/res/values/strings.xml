@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">ProofmodeC2pa</string>
+    <string name="grid_lines_hide_description">Hide grid lines</string>
+    <string name="show_grid_lines_description">Show grid lines</string>
+    <string name="change_flash_mode_content_description">Change flash mode</string>
+    <string name="change_exposure_compensation">Change exposure compensation</string>
+    <string name="turn_off_flash_description">Turn off flash</string>
+    <string name="turn_flash_on_auto_description">Turn flash mode to auto</string>
+    <string name="turn_flash_on_description">Turn flash on</string>
+    <string name="delete_media_confirmation">Delete media</string>
+    <string name="delete">Delete</string>
+    <string name="permission_request_message">This feature requires camera and audio permissions. Please grant them to continue.</string>
+    <string name="grant_permissions">Grant Permissions</string>
+    <string name="take_photo">Take Photo</string>
+    <string name="start_recording">Start Recording</string>
+    <string name="pause_recording">Pause Recording</string>
+    <string name="resume_recording">Resume Recording</string>
+    <string name="stop_recording">Stop Recording</string>
+</resources>
