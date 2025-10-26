@@ -9,8 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.gms.location.LocationServices
@@ -25,13 +23,16 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.KeyPair
 import java.security.KeyPairGenerator
-import java.security.KeyStore
-import java.util.Base64
-import java.util.Calendar
+import android.util.Base64
+import java.security.KeyFactory
+import java.security.PrivateKey
+import java.security.PublicKey
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import java.security.spec.PKCS8EncodedKeySpec
+import java.security.spec.X509EncodedKeySpec
 
-fun generateOrGetKeyPair(alias: String): KeyPair {
+/*fun generateOrGetKeyPair(alias: String): KeyPair {
     val keyStore = KeyStore.getInstance("AndroidKeyStore")
     keyStore.load(null)
 
@@ -65,33 +66,93 @@ fun generateOrGetKeyPair(alias: String): KeyPair {
     )
     keyPairGenerator.initialize(spec)
     return keyPairGenerator.generateKeyPair()
-}
+}*/
 
-fun getKeyPair(alias: String): KeyPair? {
+/*fun getKeyPair(alias: String): KeyPair? {
     val keyStore = KeyStore.getInstance("AndroidKeyStore")
     keyStore.load(null)
     val privateKey = keyStore.getKey(alias, null) as? java.security.PrivateKey ?: return null
     val publicKey = keyStore.getCertificate(alias).publicKey
     return KeyPair(publicKey, privateKey)
+}*/
+
+
+
+fun getOrGenerateKeyPair(
+    directory: File,
+    alias: String
+): KeyPair {
+    val publicKeyFile = File(directory, "$alias-public.pem")
+    val privateKeyFile = File(directory, "$alias-private.pem")
+
+    // If both files exist, load existing keys
+    if (publicKeyFile.exists() && privateKeyFile.exists()) {
+        val publicKey = loadPublicKey(publicKeyFile)
+        val privateKey = loadPrivateKey(privateKeyFile)
+        return KeyPair(publicKey, privateKey)
+    }
+
+    // Otherwise generate and save new key pair
+    val keyPairGenerator = KeyPairGenerator.getInstance("RSA")
+    keyPairGenerator.initialize(2048)
+    val keyPair = keyPairGenerator.generateKeyPair()
+
+    saveKeyToPem(publicKeyFile, keyPair.public.encoded, "PUBLIC KEY")
+    saveKeyToPem(privateKeyFile, keyPair.private.encoded, "PRIVATE KEY")
+
+    return keyPair
 }
 
-fun keyPairToPemStrings(keyPair: KeyPair): Pair<String?, String?> {
-    val publicKeyString = keyPair.public?.encoded?.let {
+
+private fun saveKeyToPem(file: File, keyBytes: ByteArray, type: String) {
+    val base64 = Base64.encodeToString(keyBytes, Base64.NO_WRAP)
+    val pem = "-----BEGIN $type-----\n$base64\n-----END $type-----"
+    file.writeText(pem)
+}
+
+private fun loadPublicKey(file: File): PublicKey {
+    val keyBytes = readPemBytes(file)
+    val spec = X509EncodedKeySpec(keyBytes)
+    val factory = KeyFactory.getInstance("RSA")
+    return factory.generatePublic(spec)
+}
+
+private fun loadPrivateKey(file: File): PrivateKey {
+    val keyBytes = readPemBytes(file)
+    val spec = PKCS8EncodedKeySpec(keyBytes)
+    val factory = KeyFactory.getInstance("RSA")
+    return factory.generatePrivate(spec)
+}
+
+private fun readPemBytes(file: File): ByteArray {
+    val pem = readPemString(file)
+    return Base64.decode(pem, Base64.DEFAULT)
+}
+
+fun readPemString(file: File): String {
+    return file.readLines()
+        .filter { !it.startsWith("-----") }
+        .joinToString("")
+}
+
+fun getPublicKeyFile(directory: File, alias: String): File {
+    return File(directory, "$alias-public.pem")
+}
+
+fun getPrivateKeyFile(directory: File, alias: String): File {
+    return File(directory, "$alias-private.pem")
+}
+
+
+
+fun certificatePEMFromKeyPair(keyPair: KeyPair):  String? {
+    return keyPair.public?.encoded?.let {
         val pem = StringBuilder()
         pem.appendLine("-----BEGIN PUBLIC KEY-----")
-        pem.appendLine(Base64.getEncoder().encodeToString(it).chunked(64).joinToString("\n"))
+        pem.appendLine(java.util.Base64.getEncoder().encodeToString(it).chunked(64).joinToString("\n"))
         pem.appendLine("-----END PUBLIC KEY-----")
         pem.toString()
     }
-
-    val privateKeyString = keyPair.private?.encoded?.let {
-        val pem = StringBuilder()
-        pem.appendLine("-----BEGIN PRIVATE KEY-----")
-        pem.appendLine(Base64.getEncoder().encodeToString(it).chunked(64).joinToString("\n"))
-        pem.appendLine("-----END PRIVATE KEY-----")
-        pem.toString()
-    }
-    return Pair(publicKeyString, privateKeyString)
 }
 
 
@@ -231,4 +292,6 @@ object Constants {
             "${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}/ProofModeC2pa/"
         }
     }
+
+    const val KEY_FILES_DIR = "key_files_dir"
 }

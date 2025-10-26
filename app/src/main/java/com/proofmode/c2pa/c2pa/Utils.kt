@@ -5,16 +5,18 @@ package com.proofmode.c2pa.c2pa
 import android.content.Context
 import android.location.Location
 import android.net.Uri
-import com.proofmode.c2pa.utils.generateOrGetKeyPair
+import com.proofmode.c2pa.BuildConfig
 import com.proofmode.c2pa.utils.getAppVersionName
-import com.proofmode.c2pa.utils.keyPairToPemStrings
+import com.proofmode.c2pa.utils.getPrivateKeyFile
+import com.proofmode.c2pa.utils.getPublicKeyFile
+import com.proofmode.c2pa.utils.readPemString
 import org.contentauth.c2pa.C2PA
 import org.contentauth.c2pa.SignerInfo
 import org.contentauth.c2pa.SigningAlgorithm
+import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
 import java.time.Instant
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 /**
@@ -43,16 +45,25 @@ fun signWithC2PA(uri: Uri, context: Context,fileFormat: String,
     val tempFile = createTempFileFromUri(context, uri) ?: return
 
     // 2. Set up the signer and manifest
-    val keyPair = generateOrGetKeyPair(context.applicationContext.packageName)
-    val (publicKeyPem, privateKeyPem) = keyPairToPemStrings(keyPair)
+    val publicKey= getPublicKeyFile(context.filesDir, BuildConfig.APPLICATION_ID)
+    val privateKey = getPrivateKeyFile(context.filesDir, BuildConfig.APPLICATION_ID)
+
+
+
 
     // The key generation is RSA, so the algorithm must be PS256.
-    if (publicKeyPem == null || privateKeyPem == null) {
+    if (!publicKey.exists() || !privateKey.exists()) {
         // Cannot proceed without keys. Clean up and return.
+        Timber.e("Cannot proceed without keys")
         tempFile.delete()
         return
     }
-    val signerInfo = SignerInfo(SigningAlgorithm.PS256, publicKeyPem, privateKeyPem)
+
+    val publicKeyPEM = readPemString(publicKey)
+    val privateKeyPEM = readPemString(privateKey)
+    Timber.d("signWithC2PA public: $publicKeyPEM\n\n\n")
+    Timber.d("signWithC2PA private: $privateKeyPEM")
+    val signerInfo = SignerInfo(SigningAlgorithm.PS256, publicKeyPEM, privateKeyPEM)
 
     // Create a placeholder manifest
 
@@ -77,7 +88,8 @@ fun signWithC2PA(uri: Uri, context: Context,fileFormat: String,
 
     try {
         // 3. Sign the temporary file in-place
-        C2PA.signFile(tempFile.absolutePath, tempFile.absolutePath, manifest, signerInfo)
+        C2PA.signFile(tempFile.absolutePath, tempFile.absolutePath,manifest, signerInfo)
+        //C2PA.sign()
 
         // 4. Write the signed temporary file back to the original URI
         context.contentResolver.openOutputStream(uri, "w")?.use { outputStream ->
@@ -87,6 +99,7 @@ fun signWithC2PA(uri: Uri, context: Context,fileFormat: String,
         }
     } catch (e: Exception) {
         // Handle potential signing or writing errors
+        Timber.e(e)
         e.printStackTrace()
     } finally {
         // 5. Clean up the temporary file

@@ -1,7 +1,8 @@
 package com.proofmode.c2pa
 
 import android.app.Application
-import com.proofmode.c2pa.utils.generateOrGetKeyPair
+import com.proofmode.c2pa.utils.Constants
+import com.proofmode.c2pa.utils.getOrGenerateKeyPair
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 
@@ -12,6 +13,8 @@ class C2PAApp: Application() {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
-        generateOrGetKeyPair(packageName)
+        getOrGenerateKeyPair(filesDir, BuildConfig.APPLICATION_ID)
+        //Timber.d("onCreate: ${keyPairToPemStrings(keys)}")
+
     }
 }

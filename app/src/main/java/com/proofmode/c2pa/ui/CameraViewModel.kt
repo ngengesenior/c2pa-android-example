@@ -23,7 +23,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.proofmode.c2pa.c2pa.data.Media
-import com.proofmode.c2pa.ui.RecordingState
 import com.proofmode.c2pa.c2pa.signWithC2PA
 import com.proofmode.c2pa.utils.Constants
 import com.proofmode.c2pa.utils.getCurrentLocation
@@ -81,8 +80,7 @@ class CameraViewModel @Inject constructor(@ApplicationContext private val contex
             getMediaFlow(context, outputDirectory)
                 .collect { media ->
                     _mediaFiles.value = media
-                    _thumbPreviewUri.value = media.lastOrNull()
-
+                    _thumbPreviewUri.value = media.firstOrNull()
                 }
         }
     }
@@ -96,7 +94,7 @@ class CameraViewModel @Inject constructor(@ApplicationContext private val contex
     suspend fun bindToCamera(
         lifecycleOwner: LifecycleOwner,
     ) {
-        val cameraProvider = ProcessCameraProvider.Companion.awaitInstance(context)
+        val cameraProvider = ProcessCameraProvider.awaitInstance(context)
 
         try {
             cameraProvider.unbindAll()
@@ -120,7 +118,7 @@ class CameraViewModel @Inject constructor(@ApplicationContext private val contex
         viewModelScope.launch {
             currentLocation = getCurrentLocation(context)
 
-            Timber.Forest.d("takePhoto: $currentLocation")
+            Timber.d("takePhoto: $currentLocation")
         }
 
         // Create time stamped name and MediaStore entry.
@@ -176,6 +174,8 @@ class CameraViewModel @Inject constructor(@ApplicationContext private val contex
                             fileFormat = "image/jpeg",
                             location = currentLocation
                         )
+                        // Reload the files to get the latest thumbnail
+                        loadFiles()
                     }
                 }
             }
@@ -244,6 +244,8 @@ class CameraViewModel @Inject constructor(@ApplicationContext private val contex
                                     fileFormat = "video/mp4",
                                     location = location
                                 )
+                                // Reload the files to get the latest thumbnail
+                                loadFiles()
                             }
                         } else {
                             recording?.close()
