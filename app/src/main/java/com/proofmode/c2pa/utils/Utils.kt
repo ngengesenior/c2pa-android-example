@@ -130,9 +130,12 @@ private fun readPemBytes(file: File): ByteArray {
 }
 
 fun readPemString(file: File): String {
-    return file.readLines()
-        .filter { !it.startsWith("-----") }
-        .joinToString("")
+    return file.readText()
+        .replace("-----BEGIN PUBLIC KEY-----", "")
+        .replace("-----END PUBLIC KEY-----", "")
+        .replace("-----BEGIN PRIVATE KEY-----", "")
+        .replace("-----END PRIVATE KEY-----", "")
+        .replace("\\s".toRegex(), "")
 }
 
 fun getPublicKeyFile(directory: File, alias: String): File {

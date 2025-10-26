@@ -61,8 +61,6 @@ fun signWithC2PA(uri: Uri, context: Context,fileFormat: String,
 
     val publicKeyPEM = readPemString(publicKey)
     val privateKeyPEM = readPemString(privateKey)
-    Timber.d("signWithC2PA public: $publicKeyPEM\n\n\n")
-    Timber.d("signWithC2PA private: $privateKeyPEM")
     val signerInfo = SignerInfo(SigningAlgorithm.PS256, publicKeyPEM, privateKeyPEM)
 
     // Create a placeholder manifest
