@@ -57,7 +57,7 @@ The application's logic is centered around a few key files that demonstrate a cl
 
 **[Utils.kt](./app/src/main/java/com/proofmode/c2pa/utils/Utils.kt)**:
 - getOrGenerateKeyPair(), saveKeyToPem(), etc.: A set of functions for generating an RSA KeyPair and saving it to disk in the standard PEM format.
-- readPemString(): A robust function to read PEM files, correctly stripping headers/footers to avoid the common "NUL byte" error.
+- readPemString(): A robust function to read PEM files, correctly stripping headers/footers.
 - getCurrentLocation(): A suspend function that uses the Fused Location Provider to fetch the device's location one time.
 - getMediaFlow(): A function that queries the Android MediaStore to retrieve all photos and videos created by the app, exposing them as a Kotlin Flow.
 
