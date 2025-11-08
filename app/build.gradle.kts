@@ -84,6 +84,8 @@ dependencies {
     implementation(libs.play.services.location)
     implementation(libs.timber)
     implementation(files("libs/c2pa-release.aar"))
+    implementation(libs.bcprov.jdk18on)
+    implementation(libs.bcpkix.jdk18on)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.exifinterface)
     testImplementation(libs.junit)

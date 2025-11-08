@@ -17,7 +17,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -28,9 +27,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,14 +35,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.decode.VideoFrameDecoder
 import coil.load
-import com.proofmode.c2pa.c2pa.data.Media
-import com.proofmode.c2pa.ui.CameraViewModel
+import com.proofmode.c2pa.c2pa_signing.shareMedia
+import com.proofmode.c2pa.data.Media
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaPreview(viewModel: CameraViewModel, modifier: Modifier = Modifier,
                  onNavigateBack: (() -> Unit)? = null){
+    val context = LocalContext.current
     val mediaItems by viewModel.mediaFiles.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState(pageCount = {
         mediaItems.size
@@ -74,7 +71,7 @@ fun MediaPreview(viewModel: CameraViewModel, modifier: Modifier = Modifier,
                 IconButton(onClick = {
                     val currentItem = mediaItems.getOrNull(pagerState.currentPage)
                     currentItem?.let {
-                        //context.share(it)
+                        shareMedia(context = context, media = it)
                     }
                 }) {
                     Icon(Icons.Filled.Share, contentDescription = "Share media", tint = Color.White)

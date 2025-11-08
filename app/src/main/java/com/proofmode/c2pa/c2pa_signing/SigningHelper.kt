@@ -1,4 +1,4 @@
-package org.witness.proofmode.c2pa
+package com.proofmode.c2pa.c2pa_signing
 
 import java.security.KeyFactory
 import java.security.Signature

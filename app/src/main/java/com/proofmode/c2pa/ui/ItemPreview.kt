@@ -15,7 +15,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import coil.size.Size
-import com.proofmode.c2pa.c2pa.data.Media
+import com.proofmode.c2pa.data.Media
 
 @Composable
 fun ItemPreview(modifier: Modifier = Modifier, media: Media){

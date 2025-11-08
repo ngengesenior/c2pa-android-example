@@ -12,8 +12,6 @@ import android.security.keystore.KeyProperties
 import android.security.keystore.WrappedKeyEntry
 import android.util.Base64
 import android.util.Log
-import com.proofmode.c2pa.c2pa.getLatitudeAsDMS
-import com.proofmode.c2pa.c2pa.getLongitudeAsDMS
 import com.proofmode.c2pa.utils.getCurrentLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first

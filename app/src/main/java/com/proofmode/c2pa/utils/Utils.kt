@@ -16,7 +16,7 @@ import androidx.core.content.FileProvider
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import com.proofmode.c2pa.c2pa.data.Media
+import com.proofmode.c2pa.data.Media
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -26,13 +26,10 @@ import java.io.File
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import android.util.Base64
-import androidx.compose.runtime.key
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder
 import org.bouncycastle.util.io.pem.PemObject
-import org.contentauth.c2pa.Signer
 import java.security.KeyFactory
-import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.PublicKey
 import kotlin.coroutines.resume

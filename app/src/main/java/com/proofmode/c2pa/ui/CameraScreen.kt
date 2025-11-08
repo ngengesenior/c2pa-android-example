@@ -146,7 +146,8 @@ private fun CameraCaptureScreen(viewModel: CameraViewModel, onNavigateToPreview:
                 Icon(
                     imageVector = Icons.Default.Camera,
                     contentDescription = stringResource(id = R.string.take_photo),
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(64.dp)
                 )
             }
 
@@ -156,7 +157,8 @@ private fun CameraCaptureScreen(viewModel: CameraViewModel, onNavigateToPreview:
                         Icon(
                             imageVector = Icons.Default.Videocam,
                             contentDescription = stringResource(id = R.string.start_recording),
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(64.dp)
                         )
                     }
                 }
@@ -166,14 +168,16 @@ private fun CameraCaptureScreen(viewModel: CameraViewModel, onNavigateToPreview:
                         Icon(
                             imageVector = Icons.Default.Pause,
                             contentDescription = stringResource(id = R.string.pause_recording),
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(64.dp)
                         )
                     }
                     IconButton(onClick = { viewModel.captureVideo() }) {
                         Icon(
                             imageVector = Icons.Default.Stop,
                             contentDescription = stringResource(id = R.string.stop_recording),
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(64.dp)
                         )
                     }
                 }
@@ -183,14 +187,16 @@ private fun CameraCaptureScreen(viewModel: CameraViewModel, onNavigateToPreview:
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = stringResource(id = R.string.resume_recording),
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(64.dp)
                         )
                     }
                     IconButton(onClick = { viewModel.captureVideo() }) {
                         Icon(
                             imageVector = Icons.Default.Stop,
                             contentDescription = stringResource(id = R.string.stop_recording),
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(64.dp)
                         )
                     }
                 }

@@ -22,8 +22,7 @@ import androidx.core.content.PermissionChecker
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.proofmode.c2pa.c2pa.data.Media
-import com.proofmode.c2pa.c2pa.signWithC2PA
+import com.proofmode.c2pa.data.Media
 import com.proofmode.c2pa.c2pa_signing.C2PAManager
 import com.proofmode.c2pa.utils.Constants
 import com.proofmode.c2pa.utils.getCurrentLocation

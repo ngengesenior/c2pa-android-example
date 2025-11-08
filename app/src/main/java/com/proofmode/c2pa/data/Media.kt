@@ -1,4 +1,4 @@
-package com.proofmode.c2pa.c2pa.data
+package com.proofmode.c2pa.data
 
 import android.net.Uri
 
