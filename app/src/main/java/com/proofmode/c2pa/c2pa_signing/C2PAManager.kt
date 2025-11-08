@@ -1,7 +1,5 @@
 package com.proofmode.c2pa.c2pa_signing
 
-//import org.witness.proofmode.ProofMode
-//import org.witness.proofmode.ProofMode.PREF_OPTION_LOCATION
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -20,7 +18,6 @@ import com.proofmode.c2pa.utils.getCurrentLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import org.contentauth.c2pa.Builder
 import org.contentauth.c2pa.ByteArrayStream
 import org.contentauth.c2pa.C2PA
@@ -64,17 +61,29 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import javax.security.auth.x500.X500Principal
 
+/**
+ * Manages all C2PA (Content Authenticity Initiative) signing operations for the application.
+ *
+ * This class is a Hilt-managed singleton that provides a centralized and simplified interface
+ * for signing media files. It abstracts the complexity of different signing backends,
+ * including the Android Keystore, hardware-backed keys (StrongBox), custom user-provided keys,
+ * and remote signing services.
+ *
+ * Its primary public function, `signMediaFile`, handles the entire process of signing a media
+ * file from a content `Uri` in-place, which is crucial for working with modern Android
+ * scoped storage. It uses a safe, temporary file pattern to avoid data corruption.
+ *
+ * @property context The application context, used for file operations and accessing system services.
+ * @property preferencesManager A manager to retrieve user preferences, such as the desired [SigningMode].
+ * Adapted from [ProofMode Android](https://gitlab.com/guardianproject/proofmode/proofmode-android/-/blob/dev/android-libproofmode/src/main/java/org/witness/proofmode/c2pa/PreferencesManager.kt?ref_type=heads)
+ */
+
 @Singleton
 class C2PAManager @Inject constructor (private val context: Context, private val preferencesManager: PreferencesManager) {
     companion object {
         private const val TAG = "C2PAManager"
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEYSTORE_ALIAS_PREFIX = "C2PA_KEY_"
-
-        // Using null for TSA URL to skip timestamping for testing
-     //   private const val DEFAULT_TSA_URL = "http://timestamp.digicert.com"
-
-        private const val TSA_SSL_COM = "https://api.c2patool.io/api/v1/timestamps/ecc"
 
         private val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
@@ -84,7 +93,26 @@ class C2PAManager @Inject constructor (private val context: Context, private val
     private lateinit var defaultSigner:Signer
 
     /**
-     * Signs the media file in place.
+     * Signs a media file from a URI and overwrites the original file with the signed version.
+     *
+     * This function does the entire "in-place" signing process for a given media file,
+     * making it safe to use with `content://` URIs from sources like MediaStore or CameraX.
+     * It uses a robust, two-step temporary file pattern to prevent data corruption:
+     *
+     * 1.  The original content from the [uri] is copied to a temporary source file.
+     * 2.  A second, empty temporary file is created as the destination for the signing operation.
+     * 3.  The internal `signStream` function is called to read from the source temp file and write
+     *     the signed output to the destination temp file.
+     * 4.  If signing is successful, the content of the signed destination temp file is streamed
+     *     back to the original [uri], overwriting it.
+     * 5.  Both temporary files are deleted at the end even if an error occurs.
+     *
+     * @param uri The `Uri` of the media file to sign. This serves as both the input for the
+     *            original content and the final destination for the signed content.
+     * @param contentType The MIME type of the media file (e.g., "image/jpeg", "video/mp4").
+     *                    This is required for the C2PA library to process the file correctly.
+     * @return A [Result] indicating the outcome. On success, it returns `Result.success(Unit)`.
+     *         On failure, it returns `Result.failure(Exception)` containing the error.
      */
 
     suspend fun signMediaFile(uri: Uri, contentType: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -136,29 +164,6 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             SigningMode.REMOTE -> createRemoteSigner()
         }
     }
-
-    /**
-    private fun createDefaultSigner(tsaUrl: String): Signer {
-        requireNotNull(defaultCertificate) { "Default certificate not available" }
-        requireNotNull(defaultPrivateKey) { "Default private key not available" }
-
-        Log.d(TAG, "Creating default signer with test certificates")
-        Log.d(TAG, "Certificate length: ${defaultCertificate!!.length} chars")
-        Log.d(TAG, "Private key length: ${defaultPrivateKey!!.length} chars")
-
-
-        return try {
-            Signer.fromKeys(
-                certsPEM = defaultCertificate!!,
-                privateKeyPEM = defaultPrivateKey!!,
-                algorithm = SigningAlgorithm.ES256,
-                tsaURL = tsaUrl,
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to create default signer", e)
-            throw e
-        }
-    }**/
 
     private suspend fun createKeystoreSigner(tsaUrl: String): Signer {
         val keyAlias = "C2PA_SOFTWARE_KEY_SECURE"
@@ -213,7 +218,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         keyStore.load(null)
 
         if (!keyStore.containsAlias(alias)) {
-            Log.d(TAG, "Creating new hardware-backed key with StrongBox if available")
+            Timber.tag(TAG).d("Creating new hardware-backed key with StrongBox if available")
 
             // Create StrongBox config
             val config = StrongBoxSigner.Config(keyTag = alias, requireUserAuthentication = false)
@@ -223,7 +228,8 @@ class C2PAManager @Inject constructor (private val context: Context, private val
                 StrongBoxSigner.createKey(config)
                 preferencesManager.setHardwareKeyAlias(alias)
             } catch (e: Exception) {
-                Log.w(TAG, "StrongBox key creation failed, falling back to hardware-backed key")
+                Timber.tag(TAG)
+                    .w("StrongBox key creation failed, falling back to hardware-backed key")
                 createKeystoreKey(alias, true)
                 preferencesManager.setHardwareKeyAlias(alias)
             }
@@ -232,7 +238,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         // Get certificate chain from signing server
         val certChain = enrollHardwareKeyCertificate(alias)
 
-        Log.d(TAG, "Creating StrongBoxSigner")
+        Timber.tag(TAG).d("Creating StrongBoxSigner")
 
         // Create StrongBox config
         val config = StrongBoxSigner.Config(keyTag = alias, requireUserAuthentication = false)
@@ -263,7 +269,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         val currentKeyHash = keyPEM.hashCode().toString()
 
         if (!keyStore.containsAlias(keyAlias) || lastKeyHash != currentKeyHash) {
-            Log.d(TAG, "Importing custom private key into Android Keystore")
+            Timber.tag(TAG).d("Importing custom private key into Android Keystore")
 
             // Remove old key if exists
             if (keyStore.containsAlias(keyAlias)) {
@@ -273,10 +279,10 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             // Try to import, fallback to direct key usage if it fails
             try {
                 importKeySecurely(keyAlias, keyPEM)
-                Log.d(TAG, "Successfully imported custom key using Secure Key Import")
+                Timber.tag(TAG).d("Successfully imported custom key using Secure Key Import")
                 preferencesManager.setCustomKeyHash(currentKeyHash)
             } catch (e: Exception) {
-                Log.w(TAG, "Custom key import failed, using direct key: ${e.message}")
+                Timber.tag(TAG).w("Custom key import failed, using direct key: ${e.message}")
                 // Fallback to direct key usage
                 return Signer.fromKeys(
                     certsPEM = certPEM,
@@ -287,7 +293,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             }
         }
 
-        Log.d(TAG, "Creating custom signer with KeyStoreSigner")
+        Timber.tag(TAG).d("Creating custom signer with KeyStoreSigner")
 
         // Use the new KeyStoreSigner class
         return KeyStoreSigner.createSigner(
@@ -311,7 +317,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
                 "$remoteUrl/api/v1/c2pa/configuration"
             }
 
-        Log.d(TAG, "Creating WebServiceSigner with URL: $configUrl")
+        Timber.tag(TAG).d("Creating WebServiceSigner with URL: $configUrl")
 
         // Use the new WebServiceSigner class
         val webServiceSigner =

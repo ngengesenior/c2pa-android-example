@@ -12,6 +12,22 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore: DataStore<Preferences> by
     preferencesDataStore(name = "c2pa_settings")
 
+/**
+ * Manages application preferences for C2PA signing using Jetpack DataStore.
+ *
+ * This class provides a type-safe, asynchronous API for storing and retrieving user settings
+ * related to different C2PA signing modes (e.g., Keystore, Hardware-backed, Custom, Remote).
+ * It encapsulates all interactions with the `preferencesDataStore`, exposing settings as reactive
+ * [Flow]s and providing `suspend` functions for updates.
+ *
+ * This manager is designed to be a singleton provided by Hilt, ensuring a single source of
+ * truth for all application settings.
+ *
+ * @param context The application context, required to initialize the `preferencesDataStore`.
+ * @constructor Injected by Hilt to provide a singleton instance.
+ *
+ * Adapted from [ProofMode Android Project](https://gitlab.com/guardianproject/proofmode/proofmode-android/-/blob/dev/android-libproofmode/src/main/java/org/witness/proofmode/c2pa/C2PAManager.kt?ref_type=heads)
+ */
 class PreferencesManager(private val context: Context) {
 
     companion object {
