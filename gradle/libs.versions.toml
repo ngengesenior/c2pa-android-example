@@ -27,6 +27,9 @@ hiltNavigationCompose = "1.3.0"
 kotlinxSerialization = "1.9.0"
 playServicesLocation = "21.3.0"
 timber = "5.0.1"
+mockito = "5.20.0"
+mockiton-inline = "5.2.0"
+mockitoKt = "5.3.1"
 
 
 [libraries]
@@ -56,6 +59,9 @@ hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", ve
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
+mockito-android = { module = "org.mockito:mockito-android", version.ref = "mockito" }
+mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockiton-inline" }
+mockito-kotlin = {module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockitoKt" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

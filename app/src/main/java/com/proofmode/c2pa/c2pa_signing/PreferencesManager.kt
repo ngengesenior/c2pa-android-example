@@ -28,7 +28,7 @@ private val Context.dataStore: DataStore<Preferences> by
  *
  * Adapted from [ProofMode Android Project](https://gitlab.com/guardianproject/proofmode/proofmode-android/-/blob/dev/android-libproofmode/src/main/java/org/witness/proofmode/c2pa/C2PAManager.kt?ref_type=heads)
  */
-class PreferencesManager(private val context: Context) {
+class PreferencesManager(private val context: Context): IPreferencesManager {
 
     companion object {
         val SIGNING_MODE_KEY = stringPreferencesKey("signing_mode")
@@ -42,76 +42,102 @@ class PreferencesManager(private val context: Context) {
         val CUSTOM_KEY_HASH = stringPreferencesKey("custom_key_hash")
     }
 
-    val signingMode: Flow<SigningMode> =
+    override val signingMode: Flow<SigningMode> =
         context.dataStore.data.map { preferences ->
             val mode = preferences[SIGNING_MODE_KEY] ?: SigningMode.KEYSTORE.name
             SigningMode.fromString(mode)
         }
 
-    suspend fun setSigningMode(mode: SigningMode) {
+    override suspend fun setSigningMode(mode: SigningMode) {
         context.dataStore.edit { preferences -> preferences[SIGNING_MODE_KEY] = mode.name }
     }
 
-    val remoteUrl: Flow<String?> =
+    override val remoteUrl: Flow<String?> =
         context.dataStore.data.map { preferences -> preferences[REMOTE_URL_KEY] }
 
-    suspend fun setRemoteUrl(url: String) {
+    override suspend fun setRemoteUrl(url: String) {
         context.dataStore.edit { preferences -> preferences[REMOTE_URL_KEY] = url }
     }
 
-    val remoteToken: Flow<String?> =
+    override val remoteToken: Flow<String?> =
         context.dataStore.data.map { preferences -> preferences[REMOTE_TOKEN_KEY] }
 
-    suspend fun setRemoteToken(token: String) {
+    override suspend fun setRemoteToken(token: String) {
         context.dataStore.edit { preferences -> preferences[REMOTE_TOKEN_KEY] = token }
     }
 
-    val customCertificate: Flow<String?> =
+    override val customCertificate: Flow<String?> =
         context.dataStore.data.map { preferences -> preferences[CUSTOM_CERT_KEY] }
 
-    suspend fun setCustomCertificate(cert: String) {
+    override suspend fun setCustomCertificate(cert: String) {
         context.dataStore.edit { preferences -> preferences[CUSTOM_CERT_KEY] = cert }
     }
 
-    val customPrivateKey: Flow<String?> =
+    override val customPrivateKey: Flow<String?> =
         context.dataStore.data.map { preferences -> preferences[CUSTOM_KEY_KEY] }
 
-    suspend fun setCustomPrivateKey(key: String) {
+    override suspend fun setCustomPrivateKey(key: String) {
         context.dataStore.edit { preferences -> preferences[CUSTOM_KEY_KEY] = key }
     }
 
-    suspend fun clearCustomCertificates() {
+    override suspend fun clearCustomCertificates() {
         context.dataStore.edit { preferences ->
             preferences.remove(CUSTOM_CERT_KEY)
             preferences.remove(CUSTOM_KEY_KEY)
         }
     }
 
-    val hardwareKeyAlias: Flow<String?> =
+    override val hardwareKeyAlias: Flow<String?> =
         context.dataStore.data.map { preferences -> preferences[HARDWARE_KEY_ALIAS] }
 
-    suspend fun setHardwareKeyAlias(alias: String) {
+    override suspend fun setHardwareKeyAlias(alias: String) {
         context.dataStore.edit { preferences -> preferences[HARDWARE_KEY_ALIAS] = alias }
     }
 
-    val softwareCertificate: Flow<String?> =
+    override val softwareCertificate: Flow<String?> =
         context.dataStore.data.map { preferences -> preferences[SOFTWARE_CERT_KEY] }
 
-    suspend fun setSoftwareCertificate(cert: String) {
+    override suspend fun setSoftwareCertificate(cert: String) {
         context.dataStore.edit { preferences -> preferences[SOFTWARE_CERT_KEY] = cert }
     }
 
-    val softwarePrivateKey: Flow<String?> =
+    override val softwarePrivateKey: Flow<String?> =
         context.dataStore.data.map { preferences -> preferences[SOFTWARE_KEY_KEY] }
 
-    suspend fun setSoftwarePrivateKey(key: String) {
+    override suspend fun setSoftwarePrivateKey(key: String) {
         context.dataStore.edit { preferences -> preferences[SOFTWARE_KEY_KEY] = key }
     }
 
-    val customKeyHash: Flow<String?> =
+    override val customKeyHash: Flow<String?> =
         context.dataStore.data.map { preferences -> preferences[CUSTOM_KEY_HASH] }
 
-    suspend fun setCustomKeyHash(hash: String) {
+    override suspend fun setCustomKeyHash(hash: String) {
         context.dataStore.edit { preferences -> preferences[CUSTOM_KEY_HASH] = hash }
     }
 }
+
+
+
+interface IPreferencesManager {
+    val signingMode: Flow<SigningMode>
+    val remoteUrl: Flow<String?>
+    val remoteToken: Flow<String?>
+    val customCertificate: Flow<String?>
+    val customPrivateKey: Flow<String?>
+    val customKeyHash: Flow<String?>
+    val hardwareKeyAlias: Flow<String?>
+    val softwareCertificate: Flow<String?>
+    val softwarePrivateKey: Flow<String?>
+
+    suspend fun setSigningMode(mode: SigningMode)
+    suspend fun setRemoteUrl(url: String)
+    suspend fun setRemoteToken(token: String)
+    suspend fun setCustomCertificate(cert: String)
+    suspend fun setCustomPrivateKey(key: String)
+    suspend fun clearCustomCertificates()
+    suspend fun setHardwareKeyAlias(alias: String)
+    suspend fun setSoftwareCertificate(cert: String)
+    suspend fun setSoftwarePrivateKey(key: String)
+    suspend fun setCustomKeyHash(hash: String)
+}
+

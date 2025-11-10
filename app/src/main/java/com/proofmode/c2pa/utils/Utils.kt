@@ -9,8 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.gms.location.LocationServices
@@ -23,193 +21,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.security.KeyPair
-import java.security.KeyPairGenerator
-import android.util.Base64
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
-import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder
-import org.bouncycastle.util.io.pem.PemObject
-import java.security.KeyFactory
-import java.security.PrivateKey
-import java.security.PublicKey
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import java.security.spec.PKCS8EncodedKeySpec
-import java.security.spec.X509EncodedKeySpec
-import java.util.Date
-import javax.security.auth.x500.X500Principal
 
-/*fun generateOrGetKeyPair(alias: String): KeyPair {
-    val keyStore = KeyStore.getInstance("AndroidKeyStore")
-    keyStore.load(null)
-
-    // If the key already exists, just return it
-    if (keyStore.containsAlias(alias)) {
-        val privateKey = keyStore.getKey(alias, null) as java.security.PrivateKey
-        val publicKey = keyStore.getCertificate(alias).publicKey
-        return KeyPair(publicKey, privateKey)
-    }
-
-    val start = Calendar.getInstance()
-    val end = Calendar.getInstance()
-    end.add(Calendar.YEAR, 25) // valid for 25 years
-
-    val spec = KeyGenParameterSpec.Builder(
-        alias,
-        KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
-    )
-        .setAlgorithmParameterSpec(java.security.spec.RSAKeyGenParameterSpec(2048, java.math.BigInteger.valueOf(65537)))
-        .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
-        .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
-        .setCertificateSubject(javax.security.auth.x500.X500Principal("CN=$alias"))
-        .setCertificateSerialNumber(java.math.BigInteger.ONE)
-        .setCertificateNotBefore(start.time)
-        .setCertificateNotAfter(end.time)
-        .build()
-
-    val keyPairGenerator = KeyPairGenerator.getInstance(
-        KeyProperties.KEY_ALGORITHM_RSA,
-        "AndroidKeyStore"
-    )
-    keyPairGenerator.initialize(spec)
-    return keyPairGenerator.generateKeyPair()
-}*/
-
-/*fun getKeyPair(alias: String): KeyPair? {
-    val keyStore = KeyStore.getInstance("AndroidKeyStore")
-    keyStore.load(null)
-    val privateKey = keyStore.getKey(alias, null) as? java.security.PrivateKey ?: return null
-    val publicKey = keyStore.getCertificate(alias).publicKey
-    return KeyPair(publicKey, privateKey)
-}*/
-const val ANDROID_KEYSTORE = "AndroidKeyStore"
-
-
-fun getOrGenerateKeyPair(
-    directory: File,
-    alias: String
-): KeyPair {
-    val publicKeyFile = File(directory, "$alias-public.pem")
-    val privateKeyFile = File(directory, "$alias-private.pem")
-
-    // If both files exist, load existing keys
-    if (publicKeyFile.exists() && privateKeyFile.exists()) {
-        val publicKey = loadPublicKey(publicKeyFile)
-        val privateKey = loadPrivateKey(privateKeyFile)
-        return KeyPair(publicKey, privateKey)
-    }
-
-    // Otherwise generate and save new key pair
-    val keyPairGenerator = KeyPairGenerator.getInstance("RSA")
-    keyPairGenerator.initialize(2048)
-    val keyPair = keyPairGenerator.generateKeyPair()
-
-    saveKeyToPem(publicKeyFile, keyPair.public.encoded, "PUBLIC KEY")
-    saveKeyToPem(privateKeyFile, keyPair.private.encoded, "PRIVATE KEY")
-
-    return keyPair
-}
-
-
-private fun saveKeyToPem(file: File, keyBytes: ByteArray, type: String) {
-    val base64 = Base64.encodeToString(keyBytes, Base64.NO_WRAP)
-    // Split into 64-character lines for PEM format
-    val pemBody = base64.chunked(64).joinToString("\n")
-    val pem = "-----BEGIN $type-----\n$pemBody\n-----END $type-----"
-    file.writeText(pem)
-}
-
-private fun loadPublicKey(file: File): PublicKey {
-    val keyBytes = readPemBytes(file)
-    val spec = X509EncodedKeySpec(keyBytes)
-    val factory = KeyFactory.getInstance("RSA")
-    return factory.generatePublic(spec)
-}
-
-private fun loadPrivateKey(file: File): PrivateKey {
-    val keyBytes = readPemBytes(file)
-    val spec = PKCS8EncodedKeySpec(keyBytes)
-    val factory = KeyFactory.getInstance("RSA")
-    return factory.generatePrivate(spec)
-}
-
-private fun readPemBytes(file: File): ByteArray {
-    val pem = readPemString(file)
-    return Base64.decode(pem, Base64.DEFAULT)
-}
-
-fun readPemString(file: File): String {
-    return file.readText()
-        .replace("-----BEGIN PUBLIC KEY-----", "")
-        .replace("-----END PUBLIC KEY-----", "")
-        .replace("-----BEGIN PRIVATE KEY-----", "")
-        .replace("-----END PRIVATE KEY-----", "")
-        .replace("\\s".toRegex(), "")
-}
-
-fun getPublicKeyFile(directory: File, alias: String): File {
-    return File(directory, "$alias-public.pem")
-}
-
-fun getPrivateKeyFile(directory: File, alias: String): File {
-    return File(directory, "$alias-private.pem")
-}
-
-
-
-fun certificatePEMFromKeyPair(keyPair: KeyPair):  String? {
-    return keyPair.public?.encoded?.let {
-        val pem = StringBuilder()
-        pem.appendLine("-----BEGIN PUBLIC KEY-----")
-        pem.appendLine(java.util.Base64.getEncoder().encodeToString(it).chunked(64).joinToString("\n"))
-        pem.appendLine("-----END PUBLIC KEY-----")
-        pem.toString()
-    }
-}
-
-
-
-private fun createKeystoreKey(alias: String, useHardware: Boolean = false) {
-    val keyPairGenerator =
-        KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, ANDROID_KEYSTORE)
-
-    val paramSpec =
-        KeyGenParameterSpec.Builder(
-            alias,
-            KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
-        )
-            .apply {
-                setDigests(KeyProperties.DIGEST_SHA256)
-                setAlgorithmParameterSpec(
-                    java.security.spec.ECGenParameterSpec("secp256r1"),
-                )
-
-                if (useHardware) {
-                    // Request hardware backing (StrongBox if available, TEE otherwise)
-                    if (android.os.Build.VERSION.SDK_INT >=
-                        android.os.Build.VERSION_CODES.P
-                    ) {
-                        setIsStrongBoxBacked(true)
-                    }
-                }
-
-                // Self-signed certificate validity
-                setCertificateSubject(
-                    X500Principal("CN=C2PA Android User, O=C2PA Example, C=US"),
-                )
-                setCertificateSerialNumber(
-                    java.math.BigInteger.valueOf(System.currentTimeMillis()),
-                )
-                setCertificateNotBefore(Date())
-                setCertificateNotAfter(
-                    Date(System.currentTimeMillis() + 365L * 24 * 60 * 60 * 1000),
-                )
-            }
-            .build()
-
-    keyPairGenerator.initialize(paramSpec)
-    keyPairGenerator.generateKeyPair()
-}
 
 suspend fun getCurrentLocation(context: Context): Location? {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -234,15 +48,7 @@ suspend fun getCurrentLocation(context: Context): Location? {
     }
 }
 
-fun Context.getAppVersionName(): String? {
-    return try {
-        val packageInfo = packageManager.getPackageInfo(packageName,0)
-        packageInfo.versionName
-    } catch (e: PackageManager.NameNotFoundException) {
-        e.printStackTrace()
-        null
-    }
-}
+
 
 
 fun getMediaFlow(context: Context, outputDirectory: String): Flow<List<Media>> = flow {
@@ -347,21 +153,5 @@ object Constants {
             "${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}/ProofModeC2pa/"
         }
     }
-
-    const val KEY_FILES_DIR = "key_files_dir"
 }
 
-
-fun generateCSr(keyPair: KeyPair) {
-    val csrBuilder = JcaPKCS10CertificationRequestBuilder(
-        X500Principal("CN=ProofMode C2PA Demo"),
-        keyPair.public
-    )
-
-    val signer = JcaContentSignerBuilder("SHA256withRSA")
-        .build(keyPair.private)
-    val csr = csrBuilder.build(signer)
-
-    val csrPem = PemObject("CERTIFICATE REQUEST", csr.encoded)
-
-}

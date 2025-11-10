@@ -2,6 +2,7 @@ package com.proofmode.c2pa.di
 
 import android.content.Context
 import com.proofmode.c2pa.c2pa_signing.C2PAManager
+import com.proofmode.c2pa.c2pa_signing.IPreferencesManager
 import com.proofmode.c2pa.c2pa_signing.PreferencesManager
 import dagger.Module
 import dagger.Provides
@@ -16,7 +17,7 @@ object C2PAModule {
 
     @Provides
     @Singleton
-    fun providePreferencesManager(@ApplicationContext context: Context): PreferencesManager {
+    fun providePreferencesManager(@ApplicationContext context: Context): IPreferencesManager {
         return PreferencesManager(context)
     }
 
@@ -24,7 +25,7 @@ object C2PAModule {
     @Singleton
     fun provideC2PAManager(
         @ApplicationContext context: Context,
-        preferencesManager: PreferencesManager
+        preferencesManager: IPreferencesManager
     ): C2PAManager {
         return C2PAManager(context, preferencesManager)
     }

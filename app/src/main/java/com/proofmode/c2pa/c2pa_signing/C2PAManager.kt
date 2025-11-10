@@ -6,21 +6,17 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.security.keystore.WrappedKeyEntry
 import android.util.Base64
-import android.util.Log
 import com.proofmode.c2pa.utils.getCurrentLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.contentauth.c2pa.Builder
-import org.contentauth.c2pa.ByteArrayStream
 import org.contentauth.c2pa.C2PA
 import org.contentauth.c2pa.CertificateManager
-import org.contentauth.c2pa.DataStream
 import org.contentauth.c2pa.FileStream
 import org.contentauth.c2pa.KeyStoreSigner
 import org.contentauth.c2pa.Signer
@@ -77,7 +73,7 @@ import javax.security.auth.x500.X500Principal
  */
 
 @Singleton
-class C2PAManager @Inject constructor (private val context: Context, private val preferencesManager: PreferencesManager) {
+class C2PAManager @Inject constructor (private val context: Context, private val preferencesManager: IPreferencesManager) {
     companion object {
         private const val TAG = "C2PAManager"
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
@@ -109,11 +105,12 @@ class C2PAManager @Inject constructor (private val context: Context, private val
      *            original content and the final destination for the signed content.
      * @param contentType The MIME type of the media file (e.g., "image/jpeg", "video/mp4").
      *                    This is required for the C2PA library to process the file correctly.
+     * @param location The `Location` where the media was captured.
      * @return A [Result] indicating the outcome. On success, it returns `Result.success(Unit)`.
      *         On failure, it returns `Result.failure(Exception)` containing the error.
      */
 
-    suspend fun signMediaFile(uri: Uri, contentType: String): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun signMediaFile(uri: Uri, contentType: String,location: Location?): Result<Unit> = withContext(Dispatchers.IO) {
         // 1. Create a temporary file from the source URI to work with.
         val tempSourceFile = createTempFileFromUri(uri)
             ?: return@withContext Result.failure(IOException("Could not create temporary file from Uri: $uri"))
@@ -123,11 +120,9 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         try {
             // Get current signing mode
             val signingMode = preferencesManager.signingMode.first()
-           Log.d(TAG, "Using signing mode: $signingMode")
-            val location = getCurrentLocation(context)
 
             // Create manifest JSON
-            val manifestJSON = createManifestJSON(context, "proofmode-test@email.com", uri.lastPathSegment ?: "media", contentType, location, true, signingMode)
+            val manifestJSON = createManifestJSON(context, "proofmode-test@email.com", uri.lastPathSegment ?: "media", contentType, location, true)
             Timber.tag(TAG).d("Media manifest file:\n\n$manifestJSON")
 
             // Create appropriate signer based on mode
@@ -145,7 +140,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             } ?: throw IOException("Failed to open output stream for original Uri: $uri")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error signing media", e)
+            Timber.tag(TAG).e(e, "Error signing media")
             Result.failure(e)
         } finally {
             tempSourceFile.delete()
@@ -344,11 +339,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
 
                     if (useHardware) {
                         // Request hardware backing (StrongBox if available, TEE otherwise)
-                        if (Build.VERSION.SDK_INT >=
-                            Build.VERSION_CODES.P
-                        ) {
-                            setIsStrongBoxBacked(true)
-                        }
+                        setIsStrongBoxBacked(true)
                     }
 
                     // Self-signed certificate validity
@@ -379,7 +370,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         val certChain = csrResp.certificate_chain
         val certId = csrResp.certificate_id
 
-        Log.d(TAG, "Certificate enrolled successfully. ID: $certId")
+        Timber.tag(TAG).d("Certificate enrolled successfully. ID: $certId")
 
         return certChain
     }
@@ -400,10 +391,10 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             // Generate CSR using the library
             val csr = CertificateManager.createCSR(alias, config)
 
-            Log.d(TAG, "Generated proper CSR for alias $alias")
+            Timber.tag(TAG).d("Generated proper CSR for alias $alias")
             return csr
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to generate CSR", e)
+            Timber.tag(TAG).e(e, "Failed to generate CSR")
             throw RuntimeException("Failed to generate CSR: ${e.message}", e)
         }
     }
@@ -411,7 +402,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
     /** Import key using Secure Key Import (API 28+) Throws exception if import fails */
     private fun importKeySecurely(keyAlias: String, privateKeyPEM: String) {
         try {
-            Log.d(TAG, "Starting key import for alias: $keyAlias")
+            Timber.tag(TAG).d("Starting key import for alias: $keyAlias")
             val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
             keyStore.load(null)
 
@@ -422,7 +413,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
                 keyFactory.generatePrivate(PKCS8EncodedKeySpec(privateKeyBytes)) as
                     ECPrivateKey
 
-            Log.d(TAG, "Private key parsed, algorithm: ${privateKey.algorithm}")
+            Timber.tag(TAG).d("Private key parsed, algorithm: ${privateKey.algorithm}")
 
             // Create wrapping key for import (using ENCRYPT/DECRYPT which is more widely supported)
             val wrappingKeyAlias = "${keyAlias}_WRAPPER_TEMP"
@@ -448,7 +439,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
                 KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, ANDROID_KEYSTORE)
             keyPairGenerator.initialize(keyGenSpec)
             val wrappingKeyPair = keyPairGenerator.generateKeyPair()
-            Log.d(TAG, "Wrapping key generated")
+            Timber.tag(TAG).d("Wrapping key generated")
 
             // Get the public key for wrapping
             val publicKey = wrappingKeyPair.public
@@ -457,7 +448,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             val cipher = Cipher.getInstance("RSA/ECB/OAEPPadding")
             cipher.init(Cipher.WRAP_MODE, publicKey)
             val wrappedKeyBytes = cipher.wrap(privateKey)
-            Log.d(TAG, "Key wrapped, bytes length: ${wrappedKeyBytes.size}")
+            Timber.tag(TAG).d("Key wrapped, bytes length: ${wrappedKeyBytes.size}")
 
             // Import using WrappedKeyEntry
             val importSpec =
@@ -477,20 +468,20 @@ class C2PAManager @Inject constructor (private val context: Context, private val
                 )
 
             keyStore.setEntry(keyAlias, wrappedKeyEntry, null)
-            Log.d(TAG, "Key imported to keystore")
+            Timber.tag(TAG).d("Key imported to keystore")
 
             // Clean up wrapping key
             keyStore.deleteEntry(wrappingKeyAlias)
 
             // Verify import
             if (keyStore.containsAlias(keyAlias)) {
-                Log.d(TAG, "Key successfully imported and verified in keystore")
+                Timber.tag(TAG).d("Key successfully imported and verified in keystore")
             } else {
                 throw IllegalStateException("Key not found after import")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Key import failed", e)
-            Log.e(TAG, "Exception: ${e.javaClass.name}: ${e.message}")
+            Timber.tag(TAG).e(e, "Key import failed")
+            Timber.tag(TAG).e("Exception: ${e.javaClass.name}: ${e.message}")
             // Don't generate a wrong key - just fail and let the caller handle it
             throw IllegalStateException(
                 "Failed to import key using Secure Key Import: ${e.message}",
@@ -511,58 +502,11 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         return Base64.decode(pemContent, Base64.NO_WRAP)
     }
 
-    private fun signImageData(imageData: ByteArray, manifestJSON: String, signer: Signer): ByteArray {
-        Log.d(TAG, "Starting signImageData")
-        Log.d(TAG, "Input image size: ${imageData.size} bytes")
-        Log.d(TAG, "Manifest JSON: ${manifestJSON.take(200)}...") // First 200 chars
-
-        // Create Builder with manifest
-        Log.d(TAG, "Creating Builder from JSON")
-        val builder = Builder.fromJson(manifestJSON)
-
-        // Use ByteArrayStream which is designed for this purpose
-        Log.d(TAG, "Creating streams")
-        val sourceStream = DataStream(imageData)
-        val destStream = ByteArrayStream()
-
-        try {
-            // Sign the image
-            Log.d(TAG, "Calling builder.sign()")
-            builder.sign(
-                format = "image/jpeg",
-                source = sourceStream,
-                dest = destStream,
-                signer = signer,
-            )
-
-            Log.d(TAG, "builder.sign() completed successfully")
-            val result = destStream.getData()
-            Log.d(TAG, "Output size: ${result.size} bytes")
-            return result
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in signImageData", e)
-            Log.e(TAG, "Error message: ${e.message}")
-            Log.e(TAG, "Error cause: ${e.cause}")
-            throw e
-        } finally {
-            // Make sure to close streams
-            Log.d(TAG, "Closing streams")
-            sourceStream.close()
-            destStream.close()
-        }
-    }
-
     private fun signStream(sourceStream: Stream, contentType: String, destStream: Stream, manifestJSON: String, signer: Signer) {
-        Log.d(TAG, "Starting signImageData")
-        Log.d(TAG, "Manifest JSON: ${manifestJSON.take(200)}...") // First 200 chars
-
-        // Create Builder with manifest
-        Log.d(TAG, "Creating Builder from JSON")
+        Timber.tag(TAG).d("Creating Builder from JSON")
         val builder = Builder.fromJson(manifestJSON)
 
         try {
-            // Sign the image
-            Log.d(TAG, "Calling builder.sign()")
             builder.sign(
                 format = contentType,
                 source = sourceStream,
@@ -570,22 +514,20 @@ class C2PAManager @Inject constructor (private val context: Context, private val
                 signer = signer,
             )
 
-            Log.d(TAG, "builder.sign() completed successfully")
+            Timber.tag(TAG).d("builder.sign() completed successfully")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error in signImageData", e)
-            Log.e(TAG, "Error message: ${e.message}")
-            Log.e(TAG, "Error cause: ${e.cause}")
+            Timber.tag(TAG).e("Error message: ${e.message}")
             throw e
         } finally {
             // Make sure to close streams
-            Log.d(TAG, "Closing streams")
+            Timber.tag(TAG).d("Closing streams")
             sourceStream.close()
             destStream.close()
         }
     }
 
-    private suspend fun createManifestJSON(context: Context, creator: String, fileName: String, contentType: String, location: Location?, isDirectCapture: Boolean, signingMode: SigningMode): String {
+    private fun createManifestJSON(context: Context, creator: String, fileName: String, contentType: String, location: Location?, isDirectCapture: Boolean): String {
 
         val appLabel = getAppName(context)
         val appVersion = getAppVersionName(context)
@@ -633,8 +575,6 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             addAuthor(creator)
             dateCreated(Date())
         }
-
-        val location = getCurrentLocation(context)
         if (location  != null) {
             val exifLat = getLatitudeAsDMS(location, 3)
             val exifLong = getLongitudeAsDMS(location, 3)
@@ -690,28 +630,28 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             // Read and verify using C2PA
             val manifestJSON = C2PA.readFile(tempFile.absolutePath, null)
 
-            Log.d(TAG, "C2PA VERIFICATION SUCCESS")
-            Log.d(TAG, "Manifest JSON length: ${manifestJSON.length} characters")
+            Timber.tag(TAG).d("C2PA VERIFICATION SUCCESS")
+            Timber.tag(TAG).d("Manifest JSON length: ${manifestJSON.length} characters")
 
             // Parse and log key information
             val manifest = JSONObject(manifestJSON)
             manifest.optJSONObject("active_manifest").let { activeManifest ->
-                Log.d(TAG, "Active manifest found")
+                Timber.tag(TAG).d("Active manifest found")
                 activeManifest?.optString("claim_generator").let {
-                    Log.d(TAG, "Claim generator: $it")
+                    Timber.tag(TAG).d("Claim generator: $it")
                 }
-                activeManifest?.optString("title")?.let { Log.d(TAG, "Title: $it") }
+                activeManifest?.optString("title")?.let { Timber.tag(TAG).d("Title: $it") }
                 activeManifest?.optJSONObject("signature_info")?.let { sigInfo ->
-                    Log.d(TAG, "Signature info present")
-                    sigInfo.optString("alg").let { Log.d(TAG, "Algorithm: $it") }
-                    sigInfo.optString("issuer").let { Log.d(TAG, "Issuer: $it") }
+                    Timber.tag(TAG).d("Signature info present")
+                    sigInfo.optString("alg").let { Timber.tag(TAG).d("Algorithm: $it") }
+                    sigInfo.optString("issuer").let { Timber.tag(TAG).d("Issuer: $it") }
                 }
             }
 
             // Clean up temp file
             tempFile.delete()
         } catch (e: Exception) {
-            Log.e(TAG, "C2PA VERIFICATION FAILED", e)
+            Timber.tag(TAG).e(e, "C2PA VERIFICATION FAILED")
         }
     }
 
@@ -740,45 +680,6 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         return formatter.format(date)
     }
 
-    fun saveImageToGallery(imageData: ByteArray): Result<String> = try {
-        // Implementation depends on Android version
-        // For simplicity, saving to app's external files directory
-        val photosDir =
-            File(
-                context.getExternalFilesDir(
-                    Environment.DIRECTORY_PICTURES,
-                ),
-                "C2PA",
-            )
-        Log.d(TAG, "Gallery directory: ${photosDir.absolutePath}")
-        Log.d(TAG, "Directory exists: ${photosDir.exists()}")
-
-        if (!photosDir.exists()) {
-            val created = photosDir.mkdirs()
-            Log.d(TAG, "Directory created: $created")
-        }
-
-        val fileName = "C2PA_${System.currentTimeMillis()}.jpg"
-        val file = File(photosDir, fileName)
-        file.writeBytes(imageData)
-
-        Log.d(TAG, "Image saved to: ${file.absolutePath}")
-        Log.d(TAG, "File exists: ${file.exists()}")
-        Log.d(TAG, "File size: ${file.length()} bytes")
-
-        // Verify the file can be read back
-        if (file.exists() && file.canRead()) {
-            Log.d(TAG, "File successfully saved and readable")
-        } else {
-            Log.e(TAG, "File saved but cannot be read")
-        }
-
-        Result.success(file.absolutePath)
-    } catch (e: Exception) {
-        Log.e(TAG, "Error saving image", e)
-        Result.failure(e)
-    }
-
     /**
      * Helper functions for getting app name and version
      */
@@ -800,7 +701,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         try {
             applicationInfo = context.packageManager.getApplicationInfo(context.applicationInfo.packageName, 0)
         } catch (e: PackageManager.NameNotFoundException) {
-            Log.d("TAG", "The package with the given name cannot be found on the system.", e)
+            Timber.tag("TAG").d(e, "The package with the given name cannot be found on the system.")
         }
         return (if (applicationInfo != null) context.packageManager.getApplicationLabel(applicationInfo) else "Unknown") as String
 

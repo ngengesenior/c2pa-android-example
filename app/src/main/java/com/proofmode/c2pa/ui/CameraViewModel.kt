@@ -171,7 +171,7 @@ class CameraViewModel @Inject constructor(@ApplicationContext private val contex
                     // sign with C2PA
                     viewModelScope.launch {
                         output.savedUri?.let {
-                            c2paManager.signMediaFile(it, "image/jpeg")
+                            c2paManager.signMediaFile(it, "image/jpeg", location = currentLocation)
                         }
                         // Reload the files to get the latest thumbnail
                         loadFiles()
@@ -237,7 +237,7 @@ class CameraViewModel @Inject constructor(@ApplicationContext private val contex
                         if (!recordEvent.hasError()) {
                             _recordingState.update { RecordingState.Finalized(recordEvent.outputResults.outputUri) }
                             viewModelScope.launch {
-                                c2paManager.signMediaFile(recordEvent.outputResults.outputUri,"video/mp4")
+                                c2paManager.signMediaFile(recordEvent.outputResults.outputUri,"video/mp4", location = location)
                                 // Reload the files to get the latest thumbnail
                                 loadFiles()
                             }
