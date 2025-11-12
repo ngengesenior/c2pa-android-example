@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ModelTraining
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.ShareLocation
 import androidx.compose.material3.AlertDialog
@@ -46,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.proofmode.c2pa.R
@@ -75,6 +77,10 @@ class SettingsViewModel @Inject constructor(
         .map { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val isAITrainingAllowed: StateFlow<Boolean> = preferencesManager.allowAITraining
+        .map { it }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun saveUserName(name: String) {
         viewModelScope.launch {
             preferencesManager.setUserName(name)
@@ -92,189 +98,224 @@ class SettingsViewModel @Inject constructor(
             preferencesManager.setLocationSharing(enabled)
         }
     }
+
+    fun saveAITraining(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setAllowAITraining(enabled)
+        }
+    }
 }
 
-@OptIn(ExperimentalPermissionsApi::class)
-@Composable
-fun SettingsScreen(
-    viewModel: SettingsViewModel = hiltViewModel(),
-    modifier: Modifier = Modifier,
-    onNavigateBack: (() -> Unit)? = null
-) {
-    val currentName by viewModel.userName.collectAsStateWithLifecycle()
-    val currentEmail by viewModel.userEmail.collectAsStateWithLifecycle()
-    val isLocationEnabled by viewModel.isLocationSharingEnabled.collectAsStateWithLifecycle()
-    var showRationaleDialog by remember { mutableStateOf(false) }
-
-    val locationPermissionsState = rememberMultiplePermissionsState(
-        permissions = listOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
+    @OptIn(ExperimentalPermissionsApi::class)
+    @Composable
+    fun SettingsScreen(
+        viewModel: SettingsViewModel = viewModel(),
+        modifier: Modifier = Modifier,
+        onNavigateBack: (() -> Unit)? = null
     ) {
-        if (it.values.all { perm-> perm }) {
-            viewModel.saveLocationSharing(true)
-        }
-    }
+        val currentName by viewModel.userName.collectAsStateWithLifecycle()
+        val currentEmail by viewModel.userEmail.collectAsStateWithLifecycle()
+        val isLocationEnabled by viewModel.isLocationSharingEnabled.collectAsStateWithLifecycle()
+        val isAITrainingAllowed by viewModel.isAITrainingAllowed.collectAsStateWithLifecycle()
+        var showRationaleDialog by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = true) {
-        onNavigateBack?.invoke()
-    }
-
-    Scaffold(topBar = {
-        TopAppBar(title = {
-            Text(stringResource(R.string.settings))
-        })
-    }) {
-        padding ->
-        Column(
-            modifier = modifier
-                .padding(padding)
-                .fillMaxSize(),
+        val locationPermissionsState = rememberMultiplePermissionsState(
+            permissions = listOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
         ) {
-            HorizontalDivider()
-            EditableSettingRow(
-                label = stringResource(R.string.name),
-                value = currentName,
-                onSave = viewModel::saveUserName,
-                leadingIcon = Icons.Default.Person,
-                contentDescription = stringResource(R.string.user_name)
-            )
-            HorizontalDivider()
-            EditableSettingRow(
-                label = "Email",
-                value = currentEmail,
-                onSave = viewModel::saveUserEmail,
-                leadingIcon = Icons.Default.Email,
-                contentDescription = stringResource(R.string.user_email)
-            )
-            HorizontalDivider()
-            SwitchSettingRow(
-                label = stringResource(R.string.enable_location),
-                isChecked = isLocationEnabled,
-                onCheckedChange = { shouldBeEnabled ->
-                    if (shouldBeEnabled) {
-                        if (locationPermissionsState.allPermissionsGranted) {
-                            viewModel.saveLocationSharing(true)
-                        } else {
-                            if (locationPermissionsState.shouldShowRationale) {
-                                showRationaleDialog = true
-                            } else {
-                                locationPermissionsState.launchMultiplePermissionRequest()
-                            }
-                        }
-                    } else {
-                        viewModel.saveLocationSharing(false)
-                    }
-                },
-                leadingIcon = Icons.Outlined.ShareLocation,
-                contentDescription = stringResource(R.string.toggle_sharing_location)
-            )
-            HorizontalDivider()
-        }
-
-        if (showRationaleDialog) {
-            LocationPermissionRationaleDialog(
-                onConfirm = {
-                    showRationaleDialog = false
-                    locationPermissionsState.launchMultiplePermissionRequest()
-                },
-                onDismiss = { showRationaleDialog = false }
-            )
-        }
-    }
-}
-
-@Composable
-private fun LocationPermissionRationaleDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.location_permission_required)) },
-        text = { Text(stringResource(R.string.location_permission_description)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.continue_))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(android.R.string.cancel))
+            if (it.values.all { perm -> perm }) {
+                viewModel.saveLocationSharing(true)
             }
         }
-    )
-}
 
-@Composable
-private fun EditableSettingRow(
-    label: String,
-    value: String,
-    onSave: (String) -> Unit,
-    leadingIcon: ImageVector,
-    contentDescription: String
-) {
-    val context = LocalContext.current
-    var isEditing by remember { mutableStateOf(false) }
-    var editedValue by remember { mutableStateOf(value) }
-
-    LaunchedEffect(value) {
-        if (!isEditing) {
-            editedValue = value
+        BackHandler(enabled = true) {
+            onNavigateBack?.invoke()
         }
-    }
 
-    ListItem(
-        headlineContent = { Text(label, fontWeight = FontWeight.Bold) },
-        leadingContent = { Icon(imageVector = leadingIcon, contentDescription = contentDescription) },
-        supportingContent = {
-            if (isEditing) {
-                OutlinedTextField(
-                    value = editedValue,
-                    onValueChange = { editedValue = it },
-                    modifier = Modifier.fillMaxWidth(0.8f),
-                    singleLine = true
+        Scaffold(topBar = {
+            TopAppBar(title = {
+                Text(stringResource(R.string.settings))
+            })
+        }) { padding ->
+            Column(
+                modifier = modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+            ) {
+                HorizontalDivider()
+                EditableSettingRow(
+                    label = stringResource(R.string.name),
+                    value = currentName,
+                    onSave = viewModel::saveUserName,
+                    leadingIcon = Icons.Default.Person,
+                    contentDescription = stringResource(R.string.user_name)
                 )
-            } else {
-                Text(text = value.ifEmpty { "Not set" })
+                HorizontalDivider()
+                EditableSettingRow(
+                    label = "Email",
+                    value = currentEmail,
+                    onSave = viewModel::saveUserEmail,
+                    leadingIcon = Icons.Default.Email,
+                    contentDescription = stringResource(R.string.user_email)
+                )
+                HorizontalDivider()
+                SwitchSettingRow(
+                    label = stringResource(R.string.enable_location),
+                    isChecked = isLocationEnabled,
+                    onCheckedChange = { shouldBeEnabled ->
+                        if (shouldBeEnabled) {
+                            if (locationPermissionsState.allPermissionsGranted) {
+                                viewModel.saveLocationSharing(true)
+                            } else {
+                                if (locationPermissionsState.shouldShowRationale) {
+                                    showRationaleDialog = true
+                                } else {
+                                    locationPermissionsState.launchMultiplePermissionRequest()
+                                }
+                            }
+                        } else {
+                            viewModel.saveLocationSharing(false)
+                        }
+                    },
+                    leadingIcon = Icons.Outlined.ShareLocation,
+                    contentDescription = stringResource(R.string.toggle_sharing_location)
+                )
+                HorizontalDivider()
+
+                SwitchSettingRow(
+                    label = "Allow AI training",
+                    supportingText = stringResource(R.string.ai_traing_description),
+                    isChecked = isAITrainingAllowed,
+                    onCheckedChange = {
+                        viewModel.saveAITraining(it)
+                    }, leadingIcon = Icons.Default.ModelTraining,
+                    contentDescription = stringResource(R.string.ai_traing_description)
+                )
+                HorizontalDivider()
             }
-        },
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isEditing) {
-                    IconButton(onClick = {
-                        onSave(editedValue)
-                        isEditing = false
-                        Toast.makeText(context, "$label Saved", Toast.LENGTH_SHORT).show()
-                    }) {
-                        Icon(Icons.Default.Check, contentDescription = "Save $label")
-                    }
-                } else {
-                    IconButton(onClick = { isEditing = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit $label")
-                    }
+
+            if (showRationaleDialog) {
+                LocationPermissionRationaleDialog(
+                    onConfirm = {
+                        showRationaleDialog = false
+                        locationPermissionsState.launchMultiplePermissionRequest()
+                    },
+                    onDismiss = { showRationaleDialog = false }
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun LocationPermissionRationaleDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.location_permission_required)) },
+            text = { Text(stringResource(R.string.location_permission_description)) },
+            confirmButton = {
+                TextButton(onClick = onConfirm) {
+                    Text(stringResource(R.string.continue_))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(android.R.string.cancel))
                 }
             }
-        },
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-}
+        )
+    }
 
-@Composable
-private fun SwitchSettingRow(
-    label: String,
-    isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    leadingIcon: ImageVector,
-    contentDescription: String
-) {
-    ListItem(
-        headlineContent = { Text(label, fontWeight = FontWeight.Bold) },
-        leadingContent = { Icon(imageVector = leadingIcon, contentDescription = contentDescription) },
-        trailingContent = {
-            Switch(
-                checked = isChecked,
-                onCheckedChange = null
-            )
-        },
-        modifier = Modifier.clickable { onCheckedChange(!isChecked) }
-    )
-}
+
+    @Composable
+    private fun EditableSettingRow(
+        label: String,
+        value: String,
+        onSave: (String) -> Unit,
+        leadingIcon: ImageVector,
+        contentDescription: String
+    ) {
+        val context = LocalContext.current
+        var isEditing by remember { mutableStateOf(false) }
+        var editedValue by remember { mutableStateOf(value) }
+
+        LaunchedEffect(value) {
+            if (!isEditing) {
+                editedValue = value
+            }
+        }
+
+        ListItem(
+            headlineContent = { Text(label, fontWeight = FontWeight.Bold) },
+            leadingContent = {
+                Icon(
+                    imageVector = leadingIcon,
+                    contentDescription = contentDescription
+                )
+            },
+            supportingContent = {
+                if (isEditing) {
+                    OutlinedTextField(
+                        value = editedValue,
+                        onValueChange = { editedValue = it },
+                        modifier = Modifier.fillMaxWidth(0.8f),
+                        singleLine = true
+                    )
+                } else {
+                    Text(text = value.ifEmpty { "Not set" })
+                }
+            },
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isEditing) {
+                        IconButton(onClick = {
+                            onSave(editedValue)
+                            isEditing = false
+                            Toast.makeText(context, "$label Saved", Toast.LENGTH_SHORT).show()
+                        }) {
+                            Icon(Icons.Default.Check, contentDescription = "Save $label")
+                        }
+                    } else {
+                        IconButton(onClick = { isEditing = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit $label")
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+    }
+
+    @Composable
+    private fun SwitchSettingRow(
+        label: String,
+        supportingText: String? = null,
+        isChecked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        leadingIcon: ImageVector,
+        contentDescription: String
+    ) {
+        ListItem(
+            headlineContent = { Text(label, fontWeight = FontWeight.Bold) },
+            leadingContent = {
+                Icon(
+                    imageVector = leadingIcon,
+                    contentDescription = contentDescription
+                )
+            },
+            trailingContent = {
+                Switch(
+                    checked = isChecked,
+                    onCheckedChange = null
+                )
+            },
+            supportingContent = if (supportingText != null) {
+                { Text(supportingText) }
+            } else {
+                null
+            },
+            modifier = Modifier.clickable { onCheckedChange(!isChecked) }
+        )
+    }
+

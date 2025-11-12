@@ -43,6 +43,7 @@ class PreferencesManager(private val context: Context): IPreferencesManager {
         val USER_NAME_KEY = stringPreferencesKey("user_name")
         val USER_EMAIL_KEY = stringPreferencesKey("user_email")
         val LOCATION_SHARING_KEY = stringPreferencesKey("location_sharing")
+        val AI_TRAINING_KEY = stringPreferencesKey("ai_training")
     }
 
     override val signingMode: Flow<SigningMode> =
@@ -142,6 +143,17 @@ class PreferencesManager(private val context: Context): IPreferencesManager {
             preferences[LOCATION_SHARING_KEY] = enabled.toString()
         }
     }
+
+    override val allowAITraining: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AI_TRAINING_KEY]?.toBoolean() ?: false
+    }
+
+
+    override suspend fun setAllowAITraining(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_TRAINING_KEY] = enabled.toString()
+        }
+    }
 }
 
 
@@ -173,5 +185,9 @@ interface IPreferencesManager {
     suspend fun setUserEmail(email: String)
     val locationSharing: Flow<Boolean>
     suspend fun setLocationSharing(enabled: Boolean)
+
+    val allowAITraining: Flow<Boolean>
+    suspend fun setAllowAITraining(enabled: Boolean)
+
 }
 

@@ -27,4 +27,5 @@
     <string name="enable_location">Enable Location</string>
     <string name="toggle_sharing_location">Toggle sharing location</string>
     <string name="permissions_required">Permissions Required</string>
+    <string name="ai_traing_description">Whether your captured media can be used for AI training</string>
 </resources>

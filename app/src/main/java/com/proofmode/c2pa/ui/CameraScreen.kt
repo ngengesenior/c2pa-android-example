@@ -176,6 +176,7 @@ private fun CameraCaptureScreen(viewModel: CameraViewModel,
     val recordingState by viewModel.recordingState.collectAsStateWithLifecycle()
     val surfaceRequest by viewModel.surfaceRequest.collectAsStateWithLifecycle()
 
+
     LaunchedEffect(Unit) {
         viewModel.bindToCamera(lifecycleOwner)
     }
@@ -190,9 +191,7 @@ private fun CameraCaptureScreen(viewModel: CameraViewModel,
                 .pointerInput(Unit) {
                     detectTapGestures(onDoubleTap = {
                         viewModel.flipCamera()
-                    }, onTap = {
-
-                    })
+                    }, onTap = { offset -> })
                 }
             ,
             surfaceRequest = surfaceRequest

@@ -9,9 +9,11 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.security.keystore.WrappedKeyEntry
 import android.util.Base64
+import com.proofmode.c2pa.data.C2paAssertion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.contentauth.c2pa.Builder
 import org.contentauth.c2pa.C2PA
 import org.contentauth.c2pa.CertificateManager
@@ -119,18 +121,14 @@ class C2PAManager @Inject constructor (private val context: Context, private val
             // Get current signing mode
             val signingMode = preferencesManager.signingMode.first()
             val name = preferencesManager.userName.first()?:""
-            val email = preferencesManager.userEmail.first()?:""
-            val creatorBuilder = StringBuilder()
-            if (name.isNotBlank()) creatorBuilder.append(name)
-            if (email.isNotBlank()) {
-                if (creatorBuilder.isNotBlank()) creatorBuilder.append(", ")
-                creatorBuilder.append(email)
-            }
+            val email = preferencesManager.userEmail.first()
+            val creator = name.ifBlank { "Proofmode demo test" }
+            val allowAITraining = preferencesManager.allowAITraining.first()
 
-            val creator = if (!creatorBuilder.isBlank()) creatorBuilder.toString() else "proofmode-test@email.com"
 
             // Create manifest JSON
-            val manifestJSON = createManifestJSON(context, "info@proofmode.org", uri.lastPathSegment ?: "media", contentType, location, true)
+            val manifestJSON = createManifestJSON(context, creator,email, uri.lastPathSegment ?: "media", contentType, location, true,allowAITraining = allowAITraining)
+
 
             // Create appropriate signer based on mode
             if (!::defaultSigner.isInitialized)
@@ -532,7 +530,10 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         }
     }
 
-    private fun createManifestJSON(context: Context, creator: String, fileName: String, contentType: String, location: Location?, isDirectCapture: Boolean): String {
+    private fun createManifestJSON(context: Context, creator: String,creatorIdentifier:String? = null, fileName: String, contentType: String, location: Location?, isDirectCapture: Boolean,
+                                   allowAITraining: Boolean = false): String {
+
+        val aiTrainingAssertion= if (allowAITraining) C2paAssertion.Allowed else C2paAssertion.NotAllowed
 
         val appLabel = getAppName(context)
         val appVersion = getAppVersionName(context)
@@ -551,6 +552,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         //   mb.addThumbnail(Thumbnail(C2PAFormats.JPEG, thumbnailId))
 
         val sAgent = SoftwareAgent(appLabel, appVersion, Build.PRODUCT)
+        mb.addAssertion(aiTrainingAssertion.label,Json.encodeToString(aiTrainingAssertion.data))
 
         if (isDirectCapture)
         {
@@ -576,7 +578,7 @@ class C2PAManager @Inject constructor (private val context: Context, private val
         val attestationBuilder = AttestationBuilder()
 
         attestationBuilder.addCreativeWork {
-            addAuthor(creator)
+            addAuthor(creator, identifier = creatorIdentifier)
             dateCreated(Date())
         }
         if (location  != null) {
