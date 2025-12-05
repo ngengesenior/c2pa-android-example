@@ -130,9 +130,9 @@ class SettingsViewModel @Inject constructor(
             }
         }
 
-        BackHandler(enabled = true) {
+        /*BackHandler(enabled = true) {
             onNavigateBack?.invoke()
-        }
+        }*/
 
         Scaffold(topBar = {
             TopAppBar(title = {

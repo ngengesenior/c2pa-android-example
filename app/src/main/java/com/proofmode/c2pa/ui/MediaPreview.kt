@@ -66,14 +66,14 @@ fun MediaPreview(viewModel: CameraViewModel, modifier: Modifier = Modifier,
 
 
 
-    BackHandler(enabled = onNavigateBack != null) {
+    /*BackHandler(enabled = onNavigateBack != null) {
         onNavigateBack?.invoke()
 
-    }
+    }*/
     Scaffold(modifier = modifier.fillMaxSize(), topBar = {
         TopAppBar(title = {}, navigationIcon = {
             IconButton(onClick = {
-                onNavigateBack?.invoke()
+                //onNavigateBack?.invoke()
             }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Go back")
             }
