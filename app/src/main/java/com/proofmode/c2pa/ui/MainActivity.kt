@@ -10,11 +10,9 @@ import androidx.compose.runtime.remember
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.proofmode.c2pa.ui.theme.ProofmodeC2paTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -34,45 +32,11 @@ class MainActivity : ComponentActivity() {
 }
 
 
-
-@Composable
-fun ProofAppNavigation() {
-    val controller = rememberNavController()
-    val cameraViewModel: CameraViewModel = hiltViewModel()
-    val settingsViewModel: SettingsViewModel = hiltViewModel()
-
-    NavHost(navController = controller,
-        startDestination = Destinations.Camera){
-        composable<Destinations.Camera> {
-            CameraScreen(viewModel = cameraViewModel, onNavigateToPreview = {
-                controller.navigate(Destinations.Preview)
-            }, onNavigateToSettings = {
-                controller.navigate(Destinations.Settings)
-            })
-
-        }
-
-        composable<Destinations.Preview> {
-            MediaPreview(viewModel = cameraViewModel, onNavigateBack = {
-                controller.popBackStack()
-            })
-        }
-        composable<Destinations.Settings> {
-            SettingsScreen(viewModel = settingsViewModel, onNavigateBack = {
-                controller.popBackStack()
-            })
-        }
-
-    }
-}
-
 @Composable
 fun ProofAppNavigation3() {
-    //val controller = rememberNavController()
     val cameraViewModel: CameraViewModel = hiltViewModel()
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val backStack = remember { mutableStateListOf<AppDestination>(AppDestination.Camera) }
-
     NavDisplay(
         backStack = backStack,
         entryProvider = {key->
