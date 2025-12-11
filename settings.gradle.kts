@@ -19,13 +19,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url = uri("https://maven.pkg.github.com/redaranj/c2pa-android")
-            credentials {
-                username = "ngengesenior"
-                password = System.getenv("GITHUB_TOKEN")
-            }
-        }
         flatDir {
             dirs("app/libs")
         }
