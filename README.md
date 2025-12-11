@@ -1,4 +1,4 @@
-# ProofMode C2PA Demo
+# C2PA Android Example
 
 This repository contains a prototype Android application demonstrating how to capture photos and videos and sign them with C2PA (Content Authenticity Initiative) credentials.
 The app is built using modern Android development practices with Jetpack Compose and CameraX.
@@ -21,7 +21,7 @@ The app is built using modern Android development practices with Jetpack Compose
 - Permissions: Accompanist Permissions for a clean, composable-based permissions handling flow.
 - Location: Google Play Services Fused Location Provider for accurate and efficient location fetching.
 - Image Loading: Coil for displaying the thumbnail preview.
-- Maps Compose: For showing location of captured media(ensure to get a Google maps key and place it in local.defaults.properties and app/secrets.properties)
+- MapLibre Compose: For showing location of captured media.
 
 ## Project Architecture
 The application's logic is centered around a few key files that demonstrate a clean separation of concerns.

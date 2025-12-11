@@ -1,16 +1,19 @@
 package com.proofmode.c2pa.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.capitalize
 import androidx.compose.ui.unit.dp
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.*
 import com.proofmode.c2pa.data.Manifest
 import com.proofmode.c2pa.data.extractMetadata
 import java.util.Locale
@@ -59,30 +62,14 @@ fun ManifestDetailsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // ───────────────────────
-        // GOOGLE MAP LOCATION
+        // MAP Libre LOCATION
         // ───────────────────────
         if (metadata.lat != null && metadata.lng != null) {
-            val latLng = LatLng(metadata.lat,metadata.lng)
-            val markerState = rememberUpdatedMarkerState(position = latLng)
-            val cameraPositionState = rememberCameraPositionState {
-                position = CameraPosition.fromLatLngZoom(
-                    latLng, 12f
-                )
-            }
-
-            GoogleMap(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp),
-                cameraPositionState = cameraPositionState
-            ) {
-                Marker(
-                    state = markerState,
-                    //position = LatLng(metadata.lat, metadata.lng),
-                    title = "Location",
-                    snippet = "Lat:${latLng.latitude}, Lon:${latLng.longitude}"
-                )
-            }
+            val latLng = org.maplibre.android.geometry.LatLng(metadata.lat, metadata.lng)
+            MapUI(latLng = latLng,
+                modifier = Modifier.fillMaxWidth()
+                    .height(220.dp)
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

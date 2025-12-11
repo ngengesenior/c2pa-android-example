@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.secrets.gradle.plugin)
 }
 
 android {
@@ -75,7 +74,6 @@ dependencies {
     implementation (libs.androidx.constraintlayout.compose)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.hilt.android)
-    implementation(libs.maps.compose)
     ksp(libs.hilt.android.compiler)
     implementation(libs.coil)
     implementation(libs.coil.video)
@@ -94,6 +92,7 @@ dependencies {
     implementation(libs.bcpkix.jdk18on)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.maplibre.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -105,6 +104,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+/*
 secrets {
     // Optionally specify a different filename containing your secrets.
     // The plugin defaults to "local.properties"
@@ -113,4 +113,4 @@ secrets {
     // A properties file containing default secret values. This file can be
     // checked in version control.
     defaultPropertiesFileName = "local.defaults.properties"
-}
+}*/
